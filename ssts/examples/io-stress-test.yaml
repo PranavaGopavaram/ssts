@@ -1,0 +1,21 @@
+# I/O Stress Test Configuration
+name: "Disk I/O Performance Test"
+description: "Test disk I/O performance with large file operations"
+plugin: "io-stress"
+duration: "180s"  # 3 minutes
+
+# Plugin-specific configuration
+config:
+  file_size: "1GB"
+  block_size: "4KB"
+  operations: "mixed"  # read, write, mixed
+  fsync: true
+  direct: false
+  intensity: 75
+
+# Safety limits for this test
+safety:
+  max_cpu_percent: 40.0
+  max_memory_percent: 30.0
+  max_disk_percent: 80.0  # I/O test can use more disk
+  max_network_mbps: 10.0

@@ -1,0 +1,19 @@
+# CPU Stress Test Configuration
+name: "High Intensity CPU Stress Test"
+description: "Stress test CPU with matrix multiplication for 5 minutes"
+plugin: "cpu-stress"
+duration: "300s"  # 5 minutes
+
+# Plugin-specific configuration
+config:
+  workers: 0  # 0 = use number of CPU cores
+  algorithm: "matrix"  # prime, fibonacci, matrix, pi
+  intensity: 80  # 1-100 scale
+  ramp_up: true
+
+# Safety limits for this test
+safety:
+  max_cpu_percent: 90.0
+  max_memory_percent: 30.0  # CPU test shouldn't use much memory
+  max_disk_percent: 50.0
+  max_network_mbps: 10.0

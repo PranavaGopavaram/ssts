@@ -1,0 +1,19 @@
+# Memory Stress Test Configuration
+name: "Memory Allocation Stress Test"
+description: "Stress test memory with random allocation patterns"
+plugin: "memory-stress"
+duration: "240s"  # 4 minutes
+
+# Plugin-specific configuration
+config:
+  alloc_size: "2GB"
+  pattern: "random"  # sequential, random
+  access_type: "readwrite"  # read, write, readwrite
+  intensity: 70
+
+# Safety limits for this test
+safety:
+  max_cpu_percent: 50.0  # Memory test shouldn't use much CPU
+  max_memory_percent: 85.0
+  max_disk_percent: 50.0
+  max_network_mbps: 10.0

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ssts
+  labels:
+    name: ssts
+    app.kubernetes.io/name: ssts
+    app.kubernetes.io/version: "1.0.0"

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ssts-dev
+
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - deployment-patch.yaml
+
+replicas:
+  - name: ssts-app
+    count: 1
+
+images:
+  - name: ssts
+    newTag: dev

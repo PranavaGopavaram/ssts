@@ -1,0 +1,86 @@
+# SSTS Configuration File
+# System Stress Testing Suite
+
+# Server Configuration
+server:
+  address: "0.0.0.0"
+  port: 8080
+  read_timeout: "30s"
+  write_timeout: "30s"
+  tls:
+    enabled: false
+    cert_file: ""
+    key_file: ""
+  cors:
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers: ["*"]
+
+# Database Configuration
+database:
+  type: "sqlite"  # sqlite or postgres
+  host: "localhost"
+  port: 5432
+  username: ""
+  password: ""
+  database: "./ssts.db"
+  ssl_mode: "disable"
+
+# InfluxDB Configuration (for metrics storage)
+influxdb:
+  url: "http://localhost:8086"
+  token: ""  # Set your InfluxDB token
+  org: "ssts"
+  bucket: "metrics"
+
+# Redis Configuration (optional, for caching)
+redis:
+  address: "localhost:6379"
+  password: ""
+  db: 0
+
+# Logging Configuration
+log:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json or text
+  output: "stdout"
+
+# Safety Configuration
+safety:
+  global_limits:
+    max_cpu_percent: 80.0
+    max_memory_percent: 70.0
+    max_disk_percent: 90.0
+    emergency_stop_threshold: 95.0
+  
+  monitoring:
+    check_interval: "1s"
+    alert_threshold: 85.0
+    auto_stop_enabled: true
+  
+  ramp_up:
+    enabled: true
+    duration: "30s"
+    steps: 10
+  
+  emergency_stop: true
+
+# Authentication Configuration
+auth:
+  enabled: false
+  jwt_secret: ""  # Set a secure JWT secret if auth is enabled
+  token_expiry: "24h"
+  refresh_expiry: "168h"
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  collection_interval: "1s"
+  batch_size: 1000
+  flush_interval: "5s"
+  
+  retention:
+    realtime: "24h"
+    hourly_aggregates: "720h"  # 30 days
+    daily_aggregates: "8760h"  # 1 year
+    archive: "43800h"  # 5 years

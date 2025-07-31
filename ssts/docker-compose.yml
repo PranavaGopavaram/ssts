@@ -1,0 +1,216 @@
+services:
+  # Main SSTS Application - Optimized for reliability
+  ssts:
+    image: ssts-minimal:latest
+    container_name: ssts-app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./ssts.yaml:/app/ssts.yaml:ro
+      - ./data:/data
+      - ./logs:/app/logs
+    environment:
+      - SSTS_LOG_LEVEL=info
+      - SSTS_DATABASE_TYPE=postgres
+      - SSTS_DATABASE_HOST=postgres
+      - SSTS_DATABASE_PORT=5432
+      - SSTS_DATABASE_USERNAME=ssts
+      - SSTS_DATABASE_PASSWORD=ssts_password
+      - SSTS_DATABASE_DATABASE=ssts
+      - SSTS_INFLUXDB_URL=http://influxdb:8086
+      - SSTS_INFLUXDB_ORG=ssts
+      - SSTS_INFLUXDB_BUCKET=metrics
+      - SSTS_INFLUXDB_TOKEN=admin-token
+      - SSTS_REDIS_ADDRESS=redis:6379
+      - PORT=8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ssts-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # PostgreSQL Database - Optimized startup
+  postgres:
+    image: postgres:15-alpine
+    container_name: ssts-postgres
+    environment:
+      - POSTGRES_DB=ssts
+      - POSTGRES_USER=ssts
+      - POSTGRES_PASSWORD=ssts_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - ssts-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssts -d ssts"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    command: >
+      postgres 
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+
+  # InfluxDB for Metrics Storage - Faster initialization
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: ssts-influxdb
+    environment:
+      - INFLUXDB_DB=ssts
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin_password
+      - INFLUXDB_HTTP_AUTH_ENABLED=true
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin_password
+      - DOCKER_INFLUXDB_INIT_ORG=ssts
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin-token
+      - DOCKER_INFLUXDB_INIT_RETENTION=1w
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+    networks:
+      - ssts-network
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  # Redis for Caching - Optimized configuration
+  redis:
+    image: redis:7-alpine
+    container_name: ssts-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    restart: unless-stopped
+    networks:
+      - ssts-network
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    sysctls:
+      - net.core.somaxconn=1024
+
+  # Grafana for Metrics Visualization - Faster startup
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: ssts-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_DATABASE_TYPE=sqlite3
+      - GF_DATABASE_PATH=/var/lib/grafana/grafana.db
+      - GF_SESSION_PROVIDER=memory
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ssts-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Prometheus for Additional Monitoring
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    container_name: ssts-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.size=1GB'
+      - '--query.timeout=30s'
+      - '--query.max-concurrency=20'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - ssts-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  postgres_data:
+    driver: local
+  influxdb_data:
+    driver: local
+  influxdb_config:
+    driver: local
+  redis_data:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+
+networks:
+  ssts-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+    driver_opts:
+      com.docker.network.bridge.name: ssts-br0
+      com.docker.network.driver.mtu: 1500

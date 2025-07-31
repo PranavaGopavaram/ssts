@@ -1,0 +1,36 @@
+# Comprehensive System Stress Test
+name: "Full System Stress Test"
+description: "Comprehensive test combining CPU, memory, and I/O stress"
+plugin: "cpu-stress"  # Primary plugin
+duration: "600s"  # 10 minutes
+
+# Multi-component test configuration
+config:
+  # CPU component
+  cpu:
+    workers: 0
+    algorithm: "prime"
+    intensity: 60
+  
+  # Memory component (if supported by plugin)
+  memory:
+    alloc_size: "1GB"
+    pattern: "sequential"
+    intensity: 50
+  
+  # I/O component (if supported by plugin)
+  io:
+    file_size: "500MB"
+    operations: "mixed"
+    intensity: 40
+  
+  # Overall test intensity
+  intensity: 70
+  ramp_up: true
+
+# Stricter safety limits for comprehensive test
+safety:
+  max_cpu_percent: 85.0
+  max_memory_percent: 75.0
+  max_disk_percent: 70.0
+  max_network_mbps: 50.0

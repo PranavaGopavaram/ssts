@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ssts-app
+spec:
+  template:
+    spec:
+      containers:
+      - name: ssts
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        env:
+        - name: SSTS_LOG_LEVEL
+          value: debug

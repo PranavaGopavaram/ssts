@@ -1,0 +1,72 @@
+groups:
+  - name: ssts.rules
+    rules:
+    # High CPU Usage
+    - alert: HighCPUUsage
+      expr: (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected"
+        description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+
+    # High Memory Usage
+    - alert: HighMemoryUsage
+      expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage detected"
+        description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
+
+    # Service Down
+    - alert: ServiceDown
+      expr: up == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Service is down"
+        description: "{{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute"
+
+    # High Response Time
+    - alert: HighResponseTime
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High response time detected"
+        description: "95th percentile response time is above 1 second for {{ $labels.job }}"
+
+    # Database Connection Issues
+    - alert: DatabaseConnectionIssues
+      expr: increase(database_connection_errors_total[5m]) > 5
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Database connection issues"
+        description: "Database connection errors increased by more than 5 in the last 5 minutes"
+
+    # Disk Space Low
+    - alert: DiskSpaceLow
+      expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 90
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Disk space low"
+        description: "Disk usage is above 90% on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+
+    # Test Execution Failures
+    - alert: HighTestFailureRate
+      expr: (increase(ssts_test_failures_total[10m]) / increase(ssts_test_executions_total[10m])) * 100 > 20
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High test failure rate"
+        description: "Test failure rate is above 20% in the last 10 minutes"

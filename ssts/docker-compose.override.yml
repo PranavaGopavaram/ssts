@@ -1,0 +1,74 @@
+services:
+  ssts:
+    build:
+      context: .
+      target: go-builder  # Stop at build stage for development
+    volumes:
+      - .:/app
+      - /app/web/node_modules  # Prevent overwriting node_modules
+    environment:
+      - SSTS_LOG_LEVEL=debug
+      - SSTS_DEBUG=true
+      - DEV_AUTO_MIGRATE=true
+      - DEV_ENABLE_DEBUG_ENDPOINTS=true
+    ports:
+      - "8080:8080"
+      - "6060:6060"  # pprof debugging
+    command: ["go", "run", "./cmd/ssts", "server"]
+    depends_on:
+      - postgres
+      - redis
+      - influxdb
+
+  # Development database with exposed port
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=ssts_dev
+      - POSTGRES_USER=ssts
+      - POSTGRES_PASSWORD=dev_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+  # Development Redis
+  redis:
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+
+  # Development InfluxDB
+  influxdb:
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=dev_password
+      - DOCKER_INFLUXDB_INIT_ORG=ssts
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=dev-token
+    volumes:
+      - influxdb_dev_data:/var/lib/influxdb2
+
+  # Web development server
+  web-dev:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+      - REACT_APP_WS_URL=ws://localhost:8080/ws
+      - CHOKIDAR_USEPOLLING=true
+    command: npm start
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+  influxdb_dev_data:
